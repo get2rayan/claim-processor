@@ -1,6 +1,9 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
+from backend import db
 from backend.main import create_app
 
 
@@ -87,3 +90,12 @@ def test_every_operation_has_an_id_a_one_line_docstring_and_no_optional_inputs(c
             name = body["content"]["application/json"]["schema"]["$ref"].split("/")[-1]
             schema = schemas[name]
             assert set(schema["properties"]) == set(schema["required"])
+
+
+def test_held_back_decision_text_is_not_served(client):
+    held_back = json.loads((db.DATA_DIR / "security" / "decisions.json").read_text())
+    reason = held_back[0]["reason"]
+    assert len(reason) > 20
+    served = [client.get("/api/claims").text]
+    served += [client.get(f"/api/claims/CLM-{n}").text for n in range(1001, 1026)]
+    assert not [text for text in served if reason in text]

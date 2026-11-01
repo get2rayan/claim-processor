@@ -26,7 +26,7 @@ Build: SQLite schema and seeding from `data/`, read endpoints: `list_claims`, `g
 - [x] `GET /api/claims/CLM-1001` returns the story, items and documents
 - [x] Linked policy, customer (with history) and plan resolve for CLM-1001
 - [x] `GET /api/policy-wording` returns the text of `data/policy_wording.md`
-- [ ] No endpoint or table exposes anything from `data/evals/` or `data/security/` (test checks for CLM-1901 and the decision text)
+- [x] No endpoint or table exposes anything from `data/evals/` or `data/security/` (test checks for CLM-1901 and the decision text)
 - [x] Every operation has an `operation_id` and a one-line docstring (a test walks the OpenAPI schema)
 
 ## Phase 2: Claim workflow and the payment rule
