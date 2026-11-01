@@ -4,6 +4,7 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
 from agent import main as agent_main
+from agent.stub import StandInModel
 from backend.main import create_app
 
 
@@ -60,3 +61,18 @@ def test_run_needs_a_waiting_claim(client):
 
 def test_run_of_an_unknown_claim_is_404(client):
     assert client.post("/api/claims/CLM-9999/run").status_code == 404
+
+
+def test_run_waiting_claims_runs_each_waiting_claim_and_no_other(client, monkeypatch):
+    monkeypatch.setattr(agent_main, "default_model", StandInModel)
+    client.post("/api/claims/CLM-1001/start")
+    response = client.post("/api/claims/run-waiting")
+    assert response.status_code == 200
+    claim_ids = response.json()["claim_ids"]
+    assert len(claim_ids) == 24
+    assert "CLM-1001" not in claim_ids
+    states = {
+        claim["claim_id"]: claim["state"] for claim in client.get("/api/claims").json()
+    }
+    assert {states[claim_id] for claim_id in claim_ids} == {"decided"}
+    assert states["CLM-1001"] == "in_progress"

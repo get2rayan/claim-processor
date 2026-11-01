@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from langchain_core.language_models import BaseChatModel
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
@@ -125,3 +126,39 @@ def test_stand_in_declines_the_claim_it_is_given(client):
 def test_stand_in_is_used_when_asked_for(monkeypatch):
     monkeypatch.setenv("UNDERCOVER_STAND_IN", "1")
     assert isinstance(main.default_model(), StandInModel)
+
+
+class BrokenModel(BaseChatModel):
+    """A chat model that always fails, as a model outage would."""
+
+    @property
+    def _llm_type(self) -> str:
+        return "broken"
+
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        raise RuntimeError("model down")
+
+
+def test_a_failed_run_records_an_error_step(client):
+    with pytest.raises(RuntimeError, match="model down"):
+        main.run("CLM-1001", "thread-4", BrokenModel())
+    events = client.get("/api/claims/CLM-1001/events").json()
+    assert events[-1]["kind"] == "error"
+    assert events[-1]["text"] == "model down"
+
+
+def test_run_all_carries_on_past_a_failure(monkeypatch):
+    ran = []
+
+    def fake_run(claim_id, thread_id, llm=None):
+        ran.append(claim_id)
+        if claim_id == "CLM-1001":
+            raise RuntimeError("model down")
+        return ""
+
+    monkeypatch.setattr(main, "run", fake_run)
+    main.run_all(["CLM-1001", "CLM-1002"])
+    assert ran == ["CLM-1001", "CLM-1002"]

@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { api, type Claim } from "./api";
-import { claimTypeLabel, formatUsd } from "./format";
+import { claimTypeLabel, errorMessage, formatUsd } from "./format";
+import { anyRunning } from "./progress";
 import { StateBadge } from "./StateBadge";
 
 export function QueuePage() {
   const [claims, setClaims] = useState<Claim[]>();
   const [failed, setFailed] = useState(false);
+  const [queued, setQueued] = useState<string[]>([]);
+  const [error, setError] = useState<string>();
 
   useEffect(() => {
     api.claims().then(setClaims, () => {
@@ -13,12 +16,53 @@ export function QueuePage() {
     });
   }, []);
 
+  const running = claims !== undefined && anyRunning(claims, queued);
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => {
+      api.claims().then(setClaims, () => {
+        setError("Lost contact with the backend.");
+      });
+    }, 2000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [running]);
+
+  async function runWaiting() {
+    setError(undefined);
+    try {
+      const { claim_ids } = await api.runWaiting();
+      setQueued(claim_ids);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
+  }
+
   if (failed) return <p className="alert">Could not load the claims queue.</p>;
   if (!claims) return <p>Loading the claims queue…</p>;
 
+  const waiting = claims.filter((claim) => claim.state === "waiting").length;
+
   return (
     <section>
-      <h2>Claims queue</h2>
+      <div className="panel-head">
+        <h2>Claims queue</h2>
+        <button
+          type="button"
+          disabled={running || waiting === 0}
+          onClick={() => void runWaiting()}
+        >
+          Run agent on all waiting claims ({waiting})
+        </button>
+      </div>
+      {running && (
+        <p className="muted">
+          The agent is working through the queue. Claims are run one at a time.
+        </p>
+      )}
+      {error && <p className="alert">{error}</p>}
       <div className="table-wrap">
         <table>
           <thead>

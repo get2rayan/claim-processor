@@ -61,7 +61,7 @@ export function ClaimPage({ claimId }: { readonly claimId: string }) {
 
   const running =
     view !== undefined &&
-    isRunning(view.claim.state, view.events, runRequested);
+    isRunning(view.claim.state, view.claim.last_step, runRequested);
 
   useEffect(() => {
     if (!running) return;

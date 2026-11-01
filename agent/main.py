@@ -1,5 +1,6 @@
 """The UnderCover Agent."""
 
+import logging
 import os
 import sys
 import uuid
@@ -9,7 +10,7 @@ import httpx
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
@@ -24,6 +25,7 @@ DEFAULT_MODEL = "openai/gpt-6-luna"
 ACTOR = "UnderCover Agent"
 
 BACKEND = httpx.Client(base_url=BACKEND_URL, timeout=10)
+logger = logging.getLogger(__name__)
 
 
 def backend() -> httpx.Client:
@@ -143,6 +145,19 @@ def record(claim_id: str, kind: str, text: str) -> None:
     )
 
 
+def record_message(claim_id: str, message: BaseMessage) -> str:
+    """Post one message from a run as a step. Returns the text if it is the reply."""
+    if isinstance(message, ToolMessage):
+        record(claim_id, "tool_result", str(message.content))
+    elif isinstance(message, AIMessage) and message.tool_calls:
+        for call in message.tool_calls:
+            record(claim_id, "tool_call", f"{call['name']} {call['args']}")
+    elif isinstance(message, AIMessage):
+        record(claim_id, "reply", message.text)
+        return message.text
+    return ""
+
+
 def run(claim_id: str, thread_id: str, llm: BaseChatModel | None = None) -> str:
     """Run the agent on a waiting claim, posting each step, and return its reply."""
     instructions = fetch("GET", "/api/instructions")["text"]
@@ -151,24 +166,45 @@ def run(claim_id: str, thread_id: str, llm: BaseChatModel | None = None) -> str:
     )
     fetch("POST", f"/api/claims/{claim_id}/start")
     final = ""
-    for update in agent.stream(
-        {"messages": [{"role": "user", "content": f"Claim {claim_id}"}]},
-        config={"configurable": {"thread_id": thread_id}},
-        stream_mode="updates",
-    ):
-        for step in update.values():
-            for message in step["messages"]:
-                if isinstance(message, ToolMessage):
-                    record(claim_id, "tool_result", str(message.content))
-                elif isinstance(message, AIMessage) and message.tool_calls:
-                    for call in message.tool_calls:
-                        record(claim_id, "tool_call", f"{call['name']} {call['args']}")
-                elif isinstance(message, AIMessage):
-                    final = message.text
-                    record(claim_id, "reply", final)
+    try:
+        for update in agent.stream(
+            {"messages": [{"role": "user", "content": f"Claim {claim_id}"}]},
+            config={"configurable": {"thread_id": thread_id}},
+            stream_mode="updates",
+        ):
+            for step in update.values():
+                for message in step["messages"]:
+                    final = record_message(claim_id, message) or final
+    except Exception as error:
+        record(claim_id, "error", str(error))
+        raise
     return final
 
 
+def new_thread(claim_id: str) -> str:
+    """Return a new thread id for one run on a claim."""
+    return f"{claim_id}-{uuid.uuid4().hex}"
+
+
+def run_all(claim_ids: list[str]) -> None:
+    """Run the agent on each claim in turn, carrying on past any that fail."""
+    for claim_id in claim_ids:
+        try:
+            run(claim_id, new_thread(claim_id))
+        except Exception:
+            logger.exception("The agent failed on %s", claim_id)
+
+
+def waiting_claim_ids() -> list[str]:
+    """Return the ids of the claims waiting for the agent."""
+    claims = fetch("GET", "/api/claims")
+    return [claim["claim_id"] for claim in claims if claim["state"] == "waiting"]
+
+
 if __name__ == "__main__":
-    claim_id = sys.argv[1]
-    print(run(claim_id, f"{claim_id}-{uuid.uuid4().hex}"))
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    if len(sys.argv) > 1:
+        print(run(sys.argv[1], new_thread(sys.argv[1])))
+    else:
+        run_all(waiting_claim_ids())

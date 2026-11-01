@@ -100,14 +100,17 @@ def records(conn: sqlite3.Connection, kind: str) -> list[dict[str, Any]]:
 
 CLAIM_SELECT = """
 SELECT claim_id, body, state, decision, payout, reason, policy_section,
-    paid_amount, signed_off_by
+    paid_amount, signed_off_by,
+    (SELECT kind FROM events WHERE events.claim_id = claims.claim_id
+        ORDER BY id DESC LIMIT 1) AS last_step
 FROM claims
 """
 
 
 def _claim_from_row(row: sqlite3.Row) -> dict[str, Any]:
-    """Join a claim's filed body with its workflow state."""
-    return json.loads(row["body"]) | {key: row[key] for key in WORKFLOW_COLUMNS}
+    """Join a claim's filed body with its workflow state and latest step."""
+    columns = (*WORKFLOW_COLUMNS, "last_step")
+    return json.loads(row["body"]) | {key: row[key] for key in columns}
 
 
 def claim(conn: sqlite3.Connection, claim_id: str) -> dict[str, Any] | None:

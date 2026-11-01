@@ -35,6 +35,7 @@ export interface Claim {
   policy_section: string | null;
   paid_amount: number | null;
   signed_off_by: string | null;
+  last_step: string | null;
 }
 
 export interface Policy {
@@ -130,6 +131,8 @@ export const api = {
   instructions: () => getJson<{ text: string }>("/api/instructions"),
   runAgent: (claimId: string) =>
     send<Claim>("POST", `/api/claims/${claimId}/run`),
+  runWaiting: () =>
+    send<{ claim_ids: string[] }>("POST", "/api/claims/run-waiting"),
   signOff: (claimId: string, handlerId: string) =>
     send<Claim>("POST", `/api/claims/${claimId}/sign-off`, {
       handler_id: handlerId,

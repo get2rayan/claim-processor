@@ -37,6 +37,7 @@ const claim: Claim = {
   policy_section: null,
   paid_amount: null,
   signed_off_by: null,
+  last_step: null,
 };
 
 const decided: Claim = {
@@ -319,4 +320,33 @@ it("shows the reason when a handler cannot sign off, and pays nothing", async ()
     "/api/claims/CLM-1003/payment",
     expect.anything(),
   );
+});
+
+it("runs the agent on every waiting claim from the queue", async () => {
+  const fetchMock = stubApi({
+    ...allRoutes(claim),
+    "POST /api/claims/run-waiting": { claim_ids: ["CLM-1001"] },
+  });
+  render(<App />);
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "Run agent on all waiting claims (1)",
+    }),
+  );
+  expect(
+    await screen.findByText(/The agent is working through the queue/),
+  ).toBeDefined();
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/claims/run-waiting",
+    expect.objectContaining({ method: "POST" }),
+  );
+});
+
+it("does not offer to run the queue when no claim is waiting", async () => {
+  stubApi(allRoutes({ ...claim, state: "decided", last_step: "reply" }));
+  render(<App />);
+  const button = await screen.findByRole("button", {
+    name: "Run agent on all waiting claims (0)",
+  });
+  expect(button.hasAttribute("disabled")).toBe(true);
 });

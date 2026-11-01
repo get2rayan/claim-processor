@@ -96,6 +96,16 @@ def run_claim(claim_id: str, background: BackgroundTasks, conn: Conn) -> dict[st
     return claim
 
 
+@router.post("/api/claims/run-waiting", operation_id="run_waiting_claims")
+def run_waiting_claims(background: BackgroundTasks, conn: Conn) -> dict[str, list[str]]:
+    """Start the UnderCover Agent on every waiting claim, one after another."""
+    claim_ids = [
+        claim["claim_id"] for claim in db.claims(conn) if claim["state"] == "waiting"
+    ]
+    background.add_task(agent_main.run_all, claim_ids)
+    return {"claim_ids": claim_ids}
+
+
 @router.get("/api/policies/{policy_id}", operation_id="get_policy")
 def get_policy(policy_id: str, conn: Conn) -> dict[str, Any]:
     """Get a policy with its plan, add-ons, trip and travelers."""

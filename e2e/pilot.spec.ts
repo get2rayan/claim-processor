@@ -50,3 +50,17 @@ test("a payout over the limit waits for a handler's sign-off", async ({
   ).toHaveCount(0);
   await expect(page.locator("dd", { hasText: "$3,000.00" })).toHaveCount(2);
 });
+
+test("the agent runs on every waiting claim from the queue", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const runAll = page.getByRole("button", {
+    name: /Run agent on all waiting claims/,
+  });
+  await runAll.click();
+  await expect(page.locator(".badge-waiting")).toHaveCount(0, {
+    timeout: 120000,
+  });
+  await expect(runAll).toBeDisabled();
+});
