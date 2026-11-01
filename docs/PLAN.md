@@ -79,10 +79,10 @@ Build: "Run agent" button, step list that refreshes while the claim is `in_progr
 
 Build: Playwright tests replacing the health test, a README (short), updated `docs/STATUS.md` with how to run.
 
-- [ ] e2e: queue loads, claim opens, run (stub agent via an env switch the test server sets) completes
-- [ ] e2e: over-limit claim is blocked until signed off, then paid
-- [ ] `docs/STATUS.md` describes what is built and how to run it
-- [ ] `npm run check` passes in full (ruff, pyright, pytest 80%, prettier, eslint, tsc, vitest 80%, Playwright)
+- [x] e2e: queue loads, claim opens, run (stub agent via an env switch the test server sets) completes
+- [x] e2e: over-limit claim is blocked until signed off, then paid
+- [x] `docs/STATUS.md` describes what is built and how to run it
+- [x] `npm run check` passes in full (ruff, pyright, pytest 80%, prettier, eslint, tsc, vitest 80%, Playwright)
 - [ ] Each phase committed with the pre-commit hook passing (never `--no-verify`), nothing pushed
 
 ## Files

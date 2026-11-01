@@ -4,6 +4,7 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
 from agent import main
+from agent.stub import StandInModel
 from backend.main import create_app
 
 
@@ -112,3 +113,15 @@ def test_model_name(monkeypatch):
 def test_no_backend_route_reaches_the_evals(client):
     paths = client.get("/openapi.json").json()["paths"]
     assert not [path for path in paths if "eval" in path]
+
+
+def test_stand_in_declines_the_claim_it_is_given(client):
+    main.run("CLM-1001", "thread-3", StandInModel())
+    claim = client.get("/api/claims/CLM-1001").json()
+    assert claim["state"] == "decided"
+    assert claim["decision"] == "decline"
+
+
+def test_stand_in_is_used_when_asked_for(monkeypatch):
+    monkeypatch.setenv("UNDERCOVER_STAND_IN", "1")
+    assert isinstance(main.default_model(), StandInModel)

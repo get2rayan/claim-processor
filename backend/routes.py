@@ -1,6 +1,7 @@
 """The backend's API operations."""
 
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated, Any
 from uuid import uuid4
@@ -16,10 +17,13 @@ router = APIRouter()
 INSTRUCTIONS = Path(__file__).resolve().parent / "instructions.md"
 
 
-def get_db(request: Request) -> sqlite3.Connection:
-    """Return the database connection for this app."""
-    conn: sqlite3.Connection = request.app.state.db
-    return conn
+def get_db(request: Request) -> Iterator[sqlite3.Connection]:
+    """Open a database connection for one request, and close it after."""
+    conn = db.connect(request.app.state.db_path)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 Conn = Annotated[sqlite3.Connection, Depends(get_db)]

@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from backend import db
 from backend.main import create_app
 
 
@@ -56,11 +57,14 @@ def test_sign_off_then_payment(client):
     assert paid.json()["paid_amount"] == 3000.0
 
 
-def test_handler_without_rights_cannot_sign_off(client):
-    client.app.state.db.execute(
+def test_handler_without_rights_cannot_sign_off(client, tmp_path):
+    conn = db.connect(str(tmp_path / "test.db"))
+    conn.execute(
         "UPDATE records SET body = json_set(body, '$.can_approve_over_limit', "
         "json('false')) WHERE kind = 'handler' AND id = 'HND-02'"
     )
+    conn.commit()
+    conn.close()
     start(client, "CLM-1003")
     decide(client, "CLM-1003", payout=3000.0)
     response = client.post(

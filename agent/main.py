@@ -14,9 +14,11 @@ from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
+from agent.stub import StandInModel
+
 load_dotenv(override=True)
 
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = os.getenv("UNDERCOVER_BACKEND", "http://localhost:8000")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "openai/gpt-6-luna"
 ACTOR = "UnderCover Agent"
@@ -127,6 +129,11 @@ def model() -> ChatOpenAI:
     )
 
 
+def default_model() -> BaseChatModel:
+    """Return the stand-in model for the end-to-end tests, else the real model."""
+    return StandInModel() if os.getenv("UNDERCOVER_STAND_IN") else model()
+
+
 def record(claim_id: str, kind: str, text: str) -> None:
     """Post one step the agent took to the claim's history."""
     fetch(
@@ -139,7 +146,9 @@ def record(claim_id: str, kind: str, text: str) -> None:
 def run(claim_id: str, thread_id: str, llm: BaseChatModel | None = None) -> str:
     """Run the agent on a waiting claim, posting each step, and return its reply."""
     instructions = fetch("GET", "/api/instructions")["text"]
-    agent = create_agent(llm or model(), tools=TOOLS, system_prompt=instructions)
+    agent = create_agent(
+        llm or default_model(), tools=TOOLS, system_prompt=instructions
+    )
     fetch("POST", f"/api/claims/{claim_id}/start")
     final = ""
     for update in agent.stream(

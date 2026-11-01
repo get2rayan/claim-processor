@@ -1,13 +1,16 @@
 # Status
 
-Building the claims pilot, phase by phase (see `docs/PLAN.md`).
+The claims pilot is built (see `docs/PLAN.md`).
 
-Built so far:
+What is built:
 
-- Phases 1 and 2: `backend/` seeds a SQLite database from `data/` and serves the claims queue, claim, policy, customer, plan, handlers, company and policy wording. Claims move through waiting, in progress, awaiting sign-off and decided, and the payment rule blocks payment over $1,000 until a handler signs off.
-- Phase 3: `agent/` is the UnderCover Agent. It works a claim through the backend's API, following `backend/instructions.md`, and records each step. Run it on a claim with the backend running: `uv run -m agent.main CLM-1001`.
-- Phase 4: `dashboard/` shows the claims queue, each claim in full (with its decision once there is one) and the agent's instructions, read only.
-- Phase 5: the claim page has a "Run agent" button for a waiting claim. The agent's steps appear as it works, and a claim over the payout limit gets a sign-off panel that signs off and pays.
-- Still the skeleton: `e2e/` (one test that the home page shows the backend is up).
+- `backend/`: seeds a SQLite database from `data/` on first start, then serves the claims queue, each claim, its policy, customer, plan, handlers, company settings and policy wording. Claims move through waiting, in progress, awaiting sign-off and decided. A payout over the $1,000 limit can't be paid until a handler signs off.
+- `agent/`: the UnderCover Agent. It works a claim through the backend's API, following `backend/instructions.md`, and records each step.
+- `dashboard/`: the claims queue, each claim in full with its decision and steps, the agent's instructions (read only), a Run agent button for a waiting claim, and sign-off for a payout over the limit.
+- `e2e/`: Playwright tests of the queue, a run, and sign-off.
 
-Run the backend and the dashboard with `npm run dev`, then open http://localhost:5173. The database is `undercover.db` in the repo root, created on first start; delete it to reseed.
+Run it:
+
+- `npm run dev` starts the backend on port 8000 and the dashboard on http://localhost:5173. The backend keeps its database in `undercover.db` in the repo root, created on first start. Delete that file to reseed.
+- The agent needs `OPENROUTER_API_KEY` in `.env`. To run it on one claim from the command line while the backend is up: `uv run -m agent.main CLM-1001`.
+- `npm run check` runs every check, including the end-to-end tests. The end-to-end tests start their own backend on port 8100 and dashboard on port 5174, with a fresh temporary database and a stand-in model (set by `UNDERCOVER_STAND_IN`) in place of a real one, so they never call a model or touch `undercover.db`.

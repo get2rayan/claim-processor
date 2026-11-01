@@ -12,10 +12,10 @@ from backend.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Open the database when the app starts and close it when it stops."""
-    app.state.db = db.connect(os.getenv("UNDERCOVER_DB", "undercover.db"))
+    """Seed the database when the app starts. Each request opens its own connection."""
+    app.state.db_path = os.getenv("UNDERCOVER_DB", "undercover.db")
+    db.connect(app.state.db_path).close()
     yield
-    app.state.db.close()
 
 
 def create_app() -> FastAPI:
