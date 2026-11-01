@@ -57,12 +57,12 @@ Build: `backend/instructions.md` (decision rules from the wording: approve/decli
 
 Build: queue page with state badges, claim page (story, items, documents, policy, customer history, decision with reasons and policy section), instructions page (read only). Brand per `docs/BRAND.md`: Instrument Sans, Sea Green/Marigold/Coral/Cerulean/Raspberry, light and dark, rounded panels with no outline, US dollar formatting. TypeScript strict, no `any`, typed API client.
 
-- [ ] `npm run check:ts` passes (prettier, eslint, tsc, vitest with 80% coverage)
-- [ ] Playwright MCP: `/` lists 25 claims with their states
-- [ ] Playwright MCP: opening CLM-1001 shows full detail and "No decision yet"
-- [ ] Playwright MCP: the instructions page shows the text with no edit controls
-- [ ] Playwright MCP: dark mode and light mode both render with the brand colors and fonts
-- [ ] Amounts display as `$1,250.00`
+- [x] `npm run check:ts` passes (prettier, eslint, tsc, vitest with 80% coverage)
+- [x] Playwright MCP: `/` lists 25 claims with their states
+- [x] Playwright MCP: opening CLM-1001 shows full detail and "No decision yet"
+- [x] Playwright MCP: the instructions page shows the text with no edit controls
+- [x] Playwright MCP: dark mode and light mode both render with the brand colors and fonts
+- [x] Amounts display as `$1,250.00`
 
 ## Phase 5: Run, watch and sign off
 
