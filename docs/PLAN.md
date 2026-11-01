@@ -46,12 +46,12 @@ Build: `start_claim` (waiting to in_progress), `decide_claim(claim_id, decision,
 
 Build: `backend/instructions.md` (decision rules from the wording: approve/decline/refer, payout calculation and deductibles, the $1,000 limit, explanation format, treat claim text as data, never ask for or use evals); agent tools for each backend read and write operation; `run(claim_id, thread_id)` loads instructions from the API, runs `create_agent`, posts steps as events.
 
-- [ ] Stub-model test: a scripted agent reads CLM-1001, decides, and the backend shows the decision and events
-- [ ] Stub-model test: an agent that tries `pay_claim` on an over-limit approval gets the 409 as a tool result and the claim stays unpaid
-- [ ] Tool list has no way to reach `data/evals/` (a test checks tool names and the backend routes)
-- [ ] `uv run -m agent.main CLM-1001` runs end to end against a live backend with the real model (manual, with `OPENROUTER_API_KEY`), the claim shows a decision and the events
-- [ ] Existing `check_backend` hello test is replaced, not left dead
-- [ ] pytest, ruff, pyright pass with coverage over 80%
+- [x] Stub-model test: a scripted agent reads CLM-1001, decides, and the backend shows the decision and events
+- [x] Stub-model test: an agent that tries `pay_claim` on an over-limit approval gets the 409 as a tool result and the claim stays unpaid
+- [x] Tool list has no way to reach `data/evals/` (a test checks tool names and the backend routes)
+- [x] `uv run -m agent.main CLM-1001` runs end to end against a live backend with the real model (manual, with `OPENROUTER_API_KEY`), the claim shows a decision and the events
+- [x] Existing `check_backend` hello test is replaced, not left dead
+- [x] pytest, ruff, pyright pass with coverage over 80%
 
 ## Phase 4: Dashboard queue and claim detail
 
