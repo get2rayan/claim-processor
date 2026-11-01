@@ -256,3 +256,63 @@ tbody tr:nth-child(even) {
     margin-left: 0;
   }
 }
+
+button,
+select {
+  font: inherit;
+  color: var(--on-light);
+}
+
+button {
+  padding: 0.5rem 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sea-green);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+select {
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  border: 0;
+  background: var(--page);
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.panel-head h3 {
+  margin: 0;
+}
+
+.signoff {
+  display: grid;
+  justify-items: start;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.signoff p {
+  margin: 0;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.steps li {
+  margin-bottom: 0.4rem;
+  overflow-wrap: anywhere;
+}

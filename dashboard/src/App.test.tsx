@@ -1,7 +1,13 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { App } from "./App";
-import type { Claim, Customer, Plan, Policy } from "./api";
+import type { AgentEvent, Claim, Customer, Plan, Policy } from "./api";
 
 const claim: Claim = {
   claim_id: "CLM-1001",
@@ -43,6 +49,26 @@ const decided: Claim = {
   reason: "The delay and receipts are covered.",
 };
 
+const awaiting: Claim = {
+  ...claim,
+  claim_id: "CLM-1003",
+  claim_type: "emergency_medical",
+  amount_claimed: 3800,
+  state: "awaiting_signoff",
+  decision: "approve",
+  payout: 3000,
+  policy_section: "7. Emergency Medical",
+  reason: "The treatment is covered.",
+};
+
+const signedOff: Claim = {
+  ...awaiting,
+  state: "decided",
+  signed_off_by: "HND-01",
+};
+
+const paid: Claim = { ...signedOff, paid_amount: 3000 };
+
 const policy: Policy = {
   policy_id: "POL-2001",
   customer_id: "CUS-3001",
@@ -77,29 +103,58 @@ const plan: Plan = {
 
 const instructions = "# The UnderCover Agent\n\nDecide each claim.";
 
+const steps: AgentEvent[] = [
+  {
+    actor: "UnderCover Agent",
+    kind: "tool_call",
+    text: "get_claim {'claim_id': 'CLM-1001'}",
+  },
+  { actor: "UnderCover Agent", kind: "reply", text: "Approved for $420." },
+];
+
 function stubApi(routes: Record<string, unknown>) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn((path: string) =>
-      Promise.resolve(
-        path in routes
-          ? new Response(JSON.stringify(routes[path]))
-          : new Response("{}", { status: 404 }),
-      ),
-    ),
-  );
+  const fetchMock = vi.fn((path: string, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    const key = method === "GET" ? path : `${method} ${path}`;
+    if (!(key in routes)) {
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    }
+    const body = routes[key];
+    return Promise.resolve(
+      body instanceof Response ? body : new Response(JSON.stringify(body)),
+    );
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
-function allRoutes(current: Claim): Record<string, unknown> {
+function allRoutes(
+  current: Claim,
+  events: AgentEvent[] = [],
+): Record<string, unknown> {
   return {
     "/api/health": { status: "ok" },
     "/api/claims": [current],
     [`/api/claims/${current.claim_id}`]: current,
+    [`/api/claims/${current.claim_id}/events`]: events,
     "/api/policies/POL-2001": policy,
     "/api/customers/CUS-3001": customer,
     "/api/plans/premium": plan,
+    "/api/handlers": [
+      {
+        handler_id: "HND-01",
+        name: "Dana Whitfield",
+        role: "Senior Claims Handler",
+        can_approve_over_limit: true,
+      },
+    ],
     "/api/instructions": { text: instructions },
   };
+}
+
+async function signOffButton() {
+  await screen.findByRole("option", { name: "Dana Whitfield" });
+  return screen.findByRole("button", { name: "Sign off and pay $3,000.00" });
 }
 
 afterEach(() => {
@@ -147,6 +202,7 @@ it("shows a claim in full, with no decision yet", async () => {
     screen.getByText("UnderCover Premium, deductible $50.00"),
   ).toBeDefined();
   expect(screen.getByText("Cancellation notice")).toBeDefined();
+  expect(screen.getByText("No steps yet.")).toBeDefined();
 });
 
 it("shows the decision and payment once a claim is decided", async () => {
@@ -174,4 +230,93 @@ it("shows the agent's instructions read only", async () => {
   expect(await screen.findByText(/Decide each claim/)).toBeDefined();
   expect(screen.queryByRole("textbox")).toBeNull();
   expect(screen.queryByRole("button")).toBeNull();
+});
+
+it("runs the agent on a waiting claim and says it is working", async () => {
+  window.location.hash = "#/claims/CLM-1001";
+  const fetchMock = stubApi({
+    ...allRoutes(claim),
+    "POST /api/claims/CLM-1001/run": claim,
+  });
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Run agent" }));
+  expect(
+    await screen.findByText("The agent is working on this claim…"),
+  ).toBeDefined();
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/claims/CLM-1001/run",
+    expect.objectContaining({ method: "POST" }),
+  );
+});
+
+it("lists the agent's steps in the order they happened", async () => {
+  window.location.hash = "#/claims/CLM-1001";
+  stubApi(allRoutes(decided, steps));
+  render(<App />);
+  const items = await screen.findAllByRole("listitem");
+  expect(items.map((item) => item.textContent)).toEqual([
+    "tool_call get_claim {'claim_id': 'CLM-1001'}",
+    "reply Approved for $420.",
+  ]);
+});
+
+it("offers to run only a waiting claim", async () => {
+  window.location.hash = "#/claims/CLM-1001";
+  stubApi(allRoutes(decided));
+  render(<App />);
+  expect(await screen.findByText("Approved")).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Run agent" })).toBeNull();
+});
+
+it("offers sign-off only for a claim waiting for it", async () => {
+  window.location.hash = "#/claims/CLM-1003";
+  stubApi(allRoutes(awaiting));
+  render(<App />);
+  expect(
+    await screen.findByRole("button", { name: "Sign off and pay $3,000.00" }),
+  ).toBeDefined();
+  expect(screen.getByText("Waiting for sign-off")).toBeDefined();
+});
+
+it("does not offer sign-off once a claim is decided", async () => {
+  window.location.hash = "#/claims/CLM-1001";
+  stubApi(allRoutes(decided));
+  render(<App />);
+  expect(await screen.findByText("Approved")).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Sign off/ })).toBeNull();
+});
+
+it("signing off pays the claim", async () => {
+  window.location.hash = "#/claims/CLM-1003";
+  stubApi({
+    ...allRoutes(awaiting),
+    "POST /api/claims/CLM-1003/sign-off": signedOff,
+    "POST /api/claims/CLM-1003/payment": paid,
+  });
+  render(<App />);
+  fireEvent.click(await signOffButton());
+  await waitFor(() => {
+    expect(screen.queryByRole("button", { name: /Sign off/ })).toBeNull();
+  });
+  expect(screen.getAllByText("$3,000.00", { selector: "dd" })).toHaveLength(2);
+});
+
+it("shows the reason when a handler cannot sign off, and pays nothing", async () => {
+  window.location.hash = "#/claims/CLM-1003";
+  const fetchMock = stubApi({
+    ...allRoutes(awaiting),
+    "POST /api/claims/CLM-1003/sign-off": new Response(
+      JSON.stringify({ detail: "Dana cannot approve over the limit" }),
+      { status: 403 },
+    ),
+  });
+  render(<App />);
+  fireEvent.click(await signOffButton());
+  expect(
+    await screen.findByText("Dana cannot approve over the limit"),
+  ).toBeDefined();
+  expect(fetchMock).not.toHaveBeenCalledWith(
+    "/api/claims/CLM-1003/payment",
+    expect.anything(),
+  );
 });

@@ -25,3 +25,7 @@ export const decisionLabels: Record<Decision, string> = {
   decline: "Declined",
   refer: "Referred",
 };
+
+export function errorMessage(failure: unknown): string {
+  return failure instanceof Error ? failure.message : "Something went wrong.";
+}

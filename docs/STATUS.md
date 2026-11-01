@@ -7,6 +7,7 @@ Built so far:
 - Phases 1 and 2: `backend/` seeds a SQLite database from `data/` and serves the claims queue, claim, policy, customer, plan, handlers, company and policy wording. Claims move through waiting, in progress, awaiting sign-off and decided, and the payment rule blocks payment over $1,000 until a handler signs off.
 - Phase 3: `agent/` is the UnderCover Agent. It works a claim through the backend's API, following `backend/instructions.md`, and records each step. Run it on a claim with the backend running: `uv run -m agent.main CLM-1001`.
 - Phase 4: `dashboard/` shows the claims queue, each claim in full (with its decision once there is one) and the agent's instructions, read only.
+- Phase 5: the claim page has a "Run agent" button for a waiting claim. The agent's steps appear as it works, and a claim over the payout limit gets a sign-off panel that signs off and pays.
 - Still the skeleton: `e2e/` (one test that the home page shows the backend is up).
 
 Run the backend and the dashboard with `npm run dev`, then open http://localhost:5173. The database is `undercover.db` in the repo root, created on first start; delete it to reseed.

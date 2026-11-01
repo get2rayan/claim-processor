@@ -79,22 +79,61 @@ export interface Plan {
   emergency_medical_max: number;
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path);
-  if (!response.ok) {
-    throw new Error(`${path} returned ${String(response.status)}`);
-  }
+export interface AgentEvent {
+  actor: string;
+  kind: string;
+  text: string;
+}
+
+export interface Handler {
+  handler_id: string;
+  name: string;
+  role: string;
+  can_approve_over_limit: boolean;
+}
+
+async function send<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   const data: unknown = await response.json();
+  if (!response.ok) {
+    const detail = (data as { detail?: unknown }).detail;
+    throw new Error(
+      typeof detail === "string" ? detail : `Error ${String(response.status)}`,
+    );
+  }
   return data as T;
+}
+
+function getJson<T>(path: string): Promise<T> {
+  return send<T>("GET", path);
 }
 
 export const api = {
   health: () => getJson<{ status: string }>("/api/health"),
   claims: () => getJson<Claim[]>("/api/claims"),
   claim: (claimId: string) => getJson<Claim>(`/api/claims/${claimId}`),
+  events: (claimId: string) =>
+    getJson<AgentEvent[]>(`/api/claims/${claimId}/events`),
   policy: (policyId: string) => getJson<Policy>(`/api/policies/${policyId}`),
   customer: (customerId: string) =>
     getJson<Customer>(`/api/customers/${customerId}`),
   plan: (plan: string) => getJson<Plan>(`/api/plans/${plan}`),
+  handlers: () => getJson<Handler[]>("/api/handlers"),
   instructions: () => getJson<{ text: string }>("/api/instructions"),
+  runAgent: (claimId: string) =>
+    send<Claim>("POST", `/api/claims/${claimId}/run`),
+  signOff: (claimId: string, handlerId: string) =>
+    send<Claim>("POST", `/api/claims/${claimId}/sign-off`, {
+      handler_id: handlerId,
+    }),
+  pay: (claimId: string, amount: number) =>
+    send<Claim>("POST", `/api/claims/${claimId}/payment`, { amount }),
 };

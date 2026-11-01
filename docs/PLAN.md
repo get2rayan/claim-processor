@@ -68,12 +68,12 @@ Build: queue page with state badges, claim page (story, items, documents, policy
 
 Build: "Run agent" button, step list that refreshes while the claim is `in_progress`, sign-off panel for claims in `awaiting_signoff` (pick a handler, confirm), and the run endpoint.
 
-- [ ] Backend test: `POST /api/claims/{id}/run` with a stub model leaves the claim decided and with events
-- [ ] vitest: step list renders events in order and polls only while in progress
-- [ ] vitest: the sign-off button appears only in `awaiting_signoff`
-- [ ] Playwright MCP with a stubbed agent: run a claim, watch steps appear, see the decision
-- [ ] Playwright MCP: an over-$1,000 approval shows "Waiting for sign-off"; signing off as Dana Whitfield shows it paid
-- [ ] Playwright MCP: a handler without over-limit rights shows an error and nothing is paid
+- [x] Backend test: `POST /api/claims/{id}/run` with a stub model leaves the claim decided and with events
+- [x] vitest: step list renders events in order and polls only while in progress
+- [x] vitest: the sign-off button appears only in `awaiting_signoff`
+- [x] Playwright MCP with a stubbed agent: run a claim, watch steps appear, see the decision
+- [x] Playwright MCP: an over-$1,000 approval shows "Waiting for sign-off"; signing off as Dana Whitfield shows it paid
+- [x] Playwright MCP: a handler without over-limit rights shows an error and nothing is paid
 
 ## Phase 6: End-to-end, docs and final check
 
